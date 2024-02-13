@@ -77,18 +77,22 @@ func postExpression(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "%s\n", exp)
 
-	subexpressionMap := make(map[int]string)
-	err = expression.ProcessExpression(exp, subexpressionMap)
-	if err != nil {
-		w.WriteHeader(400)
+	if expression.IsValid(exp) {
+		subexpressionMap := make(map[int]string)
+		err = expression.ProcessExpression(exp, subexpressionMap)
+		if err != nil {
+			w.WriteHeader(400)
+		}
+
+		for k, v := range subexpressionMap {
+			w.Write([]byte(fmt.Sprintf("%d:\t", k) + v + "\n"))
+		}
+
+		w.Write([]byte(expression.CreateIdempotentKey(exp)))
+
+	} else {
+		w.Write([]byte("invalid expression"))
 	}
-
-	for k, v := range subexpressionMap {
-		w.Write([]byte(fmt.Sprintf("%d:\t", k) + v + "\n"))
-	}
-
-	w.Write([]byte(expression.CreateIdempotentKey(exp)))
-
 }
 
 func getExpressionByID(w http.ResponseWriter, r *http.Request) {

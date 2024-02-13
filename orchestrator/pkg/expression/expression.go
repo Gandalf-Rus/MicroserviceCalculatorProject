@@ -142,3 +142,30 @@ func FormatExpression(expression string) []string {
 	expression = strings.ReplaceAll(strings.ReplaceAll(expression, "/", " / "), "*", " * ")
 	return strings.Fields(expression)
 }
+
+func IsValid(expression []string) bool {
+
+	var braces c.Stack
+
+	waitOperator, waitOperand := false, true
+
+	for i, token := range expression {
+
+		if _, err := strconv.ParseFloat(token, 64); err == nil && waitOperand {
+			waitOperand = false
+			waitOperator = true
+		} else if isOperator(token) && waitOperator {
+			waitOperator = false
+			waitOperand = true
+		} else if token == "(" {
+			braces.Push(token)
+		} else if token == ")" && braces.Top() == "(" && i >= 4 && (expression[i-1] != "(" && expression[i-2] != "(" && expression[i-3] != "(") {
+			braces.Pop()
+		} else {
+			return false
+		}
+	}
+
+	return len(braces) == 0
+
+}
