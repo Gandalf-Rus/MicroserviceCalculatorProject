@@ -1,102 +1,87 @@
 package server
 
 import (
-	"MicroserviceCalculatorProject/orchestrator/pkg/expression"
+	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
-	"context"
-	"encoding/json"
-	"fmt"
+	"database/sql"
+	"log"
 	"net/http"
+	"os"
+	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
+	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
-type Orchestrator struct {
-	mux *mux.Router
+type Server struct {
+	*http.Server
 }
 
-func New() Orchestrator {
-	serveMux := mux.NewRouter()
+type apiConfig struct {
+	DB *database.Queries
+}
+
+func New() Server {
 
 	//setup logger
-	myLogger := logger.SetupLogger()
-	serveMux.Use(logger.LoggingMiddleware(myLogger))
+	myLogger := logger.SetupInfoLogger()
 
-	//handler for main menu
-	serveMux.HandleFunc("/api", mainMenu)
+	godotenv.Load("../.env")
 
-	// Обработчик POST запросов на /expression
-	serveMux.HandleFunc("/api/expression", postExpression).Methods("POST")
-
-	// Обработчик GET запросов на /expression/{id}
-	serveMux.HandleFunc("/api/expression/{id}", getExpressionByID).Methods("GET")
-
-	// Use router Gorilla Mux
-	http.Handle("/", serveMux)
-
-	return Orchestrator{serveMux}
-}
-
-func (orchestrator Orchestrator) Run() (func(context.Context) error, error) {
-
-	srv := &http.Server{Addr: ":8080", Handler: orchestrator.mux}
-
-	// start server
-	if err := srv.ListenAndServe(); err != nil {
-		fmt.Println(err)
+	portString := os.Getenv("PORT")
+	if portString == "" {
+		myLogger.Fatal("PORT is not found in envoriment")
 	}
-	// вернем функцию для завершения работы сервера
-	return srv.Shutdown, nil
-}
 
-//-------
-//functions for handle paths
-//-------
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		myLogger.Fatal("DB_URL is not found in envoriment")
+	}
 
-type Request struct {
-	Expression string `json:"expression"`
-}
-
-func mainMenu(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hi there! ''You use Distributed Calculator API''\nFor start enter commad:\n"))
-}
-
-func postExpression(w http.ResponseWriter, r *http.Request) {
-
-	request := Request{}
-
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&request)
-
+	conn, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte(err.Error()))
+		myLogger.Fatalf("Can't connect to database: %v", err)
 	}
 
-	exp := expression.FormatExpression(request.Expression)
-
-	fmt.Fprintf(w, "%s\n", exp)
-
-	if expression.IsValid(exp) {
-		subexpressionMap := make(map[int]string)
-		err = expression.ProcessExpression(exp, subexpressionMap)
-		if err != nil {
-			w.WriteHeader(400)
-		}
-
-		for k, v := range subexpressionMap {
-			w.Write([]byte(fmt.Sprintf("%d:\t", k) + v + "\n"))
-		}
-
-		w.Write([]byte(expression.CreateIdempotentKey(exp)))
-
-	} else {
-		w.Write([]byte("invalid expression"))
+	apiCfg := apiConfig{
+		DB: database.New(conn),
 	}
+
+	router := chi.NewRouter()
+
+	router.Use(logger.LoggingMiddleware(myLogger))
+
+	apiRouter := chi.NewRouter()
+	apiRouter.Get("/", handlerMainMenu)
+	apiRouter.Get("/expression/{id}", apiCfg.handlerGetExpression)
+	apiRouter.Post("/expression", apiCfg.handlerProcessExpression)
+
+	router.Mount("/api", apiRouter)
+
+	srv := &http.Server{
+		Handler: router,
+		Addr:    ":" + portString,
+	}
+
+	log.Printf("Server starting on port: %v", portString)
+
+	return Server{srv}
 }
 
-func getExpressionByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	fmt.Fprintf(w, "ID: %s\n", id)
+func (server Server) Run() {
+
+	// clear log file every 10 minute
+	go func() {
+		for {
+			logger.ClearFileLog()
+			<-time.After(time.Minute * 10)
+		}
+	}()
+
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

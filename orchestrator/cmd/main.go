@@ -3,6 +3,6 @@ package main
 import "MicroserviceCalculatorProject/orchestrator/internal/server"
 
 func main() {
-	mainOrchestrator := server.New()
-	mainOrchestrator.Run()
+	orchestrator := server.New()
+	orchestrator.Run()
 }

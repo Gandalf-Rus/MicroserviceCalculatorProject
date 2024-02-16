@@ -25,7 +25,7 @@ func isOperator(s string) bool {
 	return s == "+" || s == "-" || s == "*" || s == "/"
 }
 
-// Get subexpressions from AST (tree)
+// Create subexpressions from AST (tree)
 func splitIntoSubexpressions(root *c.Node, subexpressionMap map[int]string) (string, error) {
 	if root == nil {
 		return "", nil
@@ -148,6 +148,7 @@ func IsValid(expression []string) bool {
 	var braces c.Stack
 
 	waitOperator, waitOperand := false, true
+	wasOperator := false
 
 	for i, token := range expression {
 
@@ -155,6 +156,7 @@ func IsValid(expression []string) bool {
 			waitOperand = false
 			waitOperator = true
 		} else if isOperator(token) && waitOperator {
+			wasOperator = true
 			waitOperator = false
 			waitOperand = true
 		} else if token == "(" {
@@ -166,6 +168,6 @@ func IsValid(expression []string) bool {
 		}
 	}
 
-	return len(braces) == 0
+	return len(braces) == 0 && wasOperator && !waitOperand
 
 }
