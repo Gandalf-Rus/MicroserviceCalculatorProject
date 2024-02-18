@@ -3,9 +3,11 @@ package expression
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	c "MicroserviceCalculatorProject/orchestrator/pkg/collection"
 )
 
@@ -18,6 +20,14 @@ func setPrecedence(s string) int {
 	} else {
 		return -1
 	}
+}
+
+func getOperator(subexpression string) string {
+	pattern := `[\+\-\*\/]`
+	re := regexp.MustCompile(pattern)
+
+	return re.FindString(subexpression)
+
 }
 
 // If symbol is operator return true
@@ -48,7 +58,7 @@ func splitIntoSubexpressions(root *c.Node, subexpressionMap map[int]string) (str
 		return fmt.Sprintf("{%d}", len(subexpressionMap)), nil
 	}
 
-	if _, err := strconv.Atoi(root.Value); err == nil {
+	if _, err := strconv.ParseFloat(root.Value, 64); err == nil {
 		return root.Value, nil
 	}
 
@@ -121,7 +131,7 @@ func ProcessExpression(infixExpression []string, subexpressionMap map[int]string
 
 	_, err = splitIntoSubexpressions(tree, subexpressionMap)
 	if err != nil {
-		return errors.New("error in spliting expression")
+		return errors.New("error in spliting expression: " + err.Error())
 	}
 
 	return nil
@@ -132,6 +142,7 @@ func CreateIdempotentKey(expression []string) string {
 	key = strings.ReplaceAll(strings.ReplaceAll(key, "+", "p"), "-", "m")
 	key = strings.ReplaceAll(strings.ReplaceAll(key, "*", "u"), "/", "d")
 	key = strings.ReplaceAll(strings.ReplaceAll(key, "(", "o"), ")", "c")
+	key = strings.ReplaceAll(key, ".", "t")
 	return key
 }
 
@@ -170,4 +181,49 @@ func IsValid(expression []string) bool {
 
 	return len(braces) == 0 && wasOperator && !waitOperand
 
+}
+
+func GetSubsexprNumbersBySubsexpr(subexpression string) []int {
+	pattern := `\{(\d+)\}`
+
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindAllStringSubmatch(subexpression, -1)
+
+	numbers := make([]int, 0)
+
+	for _, match := range matches {
+		num, err := strconv.Atoi(match[1])
+		if err == nil {
+			numbers = append(numbers, num)
+		}
+	}
+
+	return numbers
+}
+
+func IsContainsUnknownVar(subexpression string) bool {
+
+	pattern := `\{(\d+)\}`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllStringSubmatch(subexpression, -1)
+
+	return len(matches) != 0
+}
+
+func ConvertSubexpressionToAgentsTask(subexpression database.Subexpression) c.AgentsTask {
+	operator := getOperator(subexpression.SubexpressionBody)
+
+	operands := strings.Split(subexpression.SubexpressionBody, operator)
+
+	leftOperand, _ := strconv.ParseFloat(operands[0], 64)
+	rightOperand, _ := strconv.ParseFloat(operands[1], 64)
+
+	return c.AgentsTask{
+		ExpressionID:        subexpression.ExpressionID,
+		SubexpressionNumber: int(subexpression.SubexpressionNumber),
+		LeftOperand:         leftOperand,
+		RightOperand:        rightOperand,
+		Operator:            operator,
+	}
 }

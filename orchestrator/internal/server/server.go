@@ -76,7 +76,7 @@ func (server Server) Run() {
 	go func() {
 		for {
 			logger.ClearFileLog()
-			<-time.After(time.Minute * 10)
+			<-time.After(time.Minute * 20)
 		}
 	}()
 

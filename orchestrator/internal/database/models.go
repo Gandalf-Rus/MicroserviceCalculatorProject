@@ -9,10 +9,16 @@ import (
 )
 
 type Expression struct {
-	ID                 string
-	ExpressionBody     string
-	ExpressionStatusID int32
-	ExpressionResult   sql.NullFloat64
+	ID                   string
+	ExpressionBody       string
+	ExpressionStatusID   int32
+	CountOfSubexpression int32
+	ExpressionResult     sql.NullFloat64
+}
+
+type OperatorsDuration struct {
+	OperatorName     string
+	OperatorDuration float64
 }
 
 type Status struct {

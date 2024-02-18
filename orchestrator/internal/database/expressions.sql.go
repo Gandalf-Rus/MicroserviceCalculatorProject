@@ -7,34 +7,45 @@ package database
 
 import (
 	"context"
-	"database/sql"
 )
 
 const createExpression = `-- name: CreateExpression :one
-INSERT INTO expressions (id, expression_body, expression_status_id, expression_result)
-VALUES($1, $2, $3, $4)
-RETURNING id, expression_body, expression_status_id, expression_result
+INSERT INTO expressions (id, expression_body, expression_status_id, count_of_subexpression, expression_result)
+VALUES($1, $2, 2, $3, NULL)
+RETURNING id, expression_body, expression_status_id, count_of_subexpression, expression_result
 `
 
 type CreateExpressionParams struct {
-	ID                 string
-	ExpressionBody     string
-	ExpressionStatusID int32
-	ExpressionResult   sql.NullFloat64
+	ID                   string
+	ExpressionBody       string
+	CountOfSubexpression int32
 }
 
 func (q *Queries) CreateExpression(ctx context.Context, arg CreateExpressionParams) (Expression, error) {
-	row := q.db.QueryRowContext(ctx, createExpression,
-		arg.ID,
-		arg.ExpressionBody,
-		arg.ExpressionStatusID,
-		arg.ExpressionResult,
-	)
+	row := q.db.QueryRowContext(ctx, createExpression, arg.ID, arg.ExpressionBody, arg.CountOfSubexpression)
 	var i Expression
 	err := row.Scan(
 		&i.ID,
 		&i.ExpressionBody,
 		&i.ExpressionStatusID,
+		&i.CountOfSubexpression,
+		&i.ExpressionResult,
+	)
+	return i, err
+}
+
+const getExpressionByID = `-- name: GetExpressionByID :one
+SELECT id, expression_body, expression_status_id, count_of_subexpression, expression_result FROM expressions WHERE id = $1
+`
+
+func (q *Queries) GetExpressionByID(ctx context.Context, id string) (Expression, error) {
+	row := q.db.QueryRowContext(ctx, getExpressionByID, id)
+	var i Expression
+	err := row.Scan(
+		&i.ID,
+		&i.ExpressionBody,
+		&i.ExpressionStatusID,
+		&i.CountOfSubexpression,
 		&i.ExpressionResult,
 	)
 	return i, err
