@@ -1,0 +1,14 @@
+2024/02/19 01:35:58 HTTP request: method=POST path=/expression duration=155.5µs
+2024/02/19 01:36:22 HTTP request: method=POST path=/api/expression duration=4.0179ms
+2024/02/19 01:36:30 HTTP request: method=POST path=/expression duration=0s
+2024/02/19 01:37:01 {2p2u2 1 2*2 2 {0 false}}
+2024/02/19 01:37:01 {2p2u2 2 2+{1} 2 {0 false}}
+2024/02/19 01:37:01 {2p2u2 1 2*2 2 {0 false}}
+2024/02/19 01:37:01 {2p2u2 2 2+{1} 2 {0 false}}
+2024/02/19 01:37:01 HTTP request: method=POST path=/api/expression duration=165.6775ms
+2024/02/19 01:37:29 {2p2u2 1 4 1}
+2024/02/19 01:37:29 {2p2u2 2 2+{1} 2 {0 false}}
+2024/02/19 01:37:29 {2p2u2 1 2*2 1 {4 true}}
+2024/02/19 01:37:29 {2p2u2 2 2+{1} 2 {0 false}}
+2024/02/19 01:37:29 {2p2u2 1 2*2 1 {4 true}}
+2024/02/19 01:37:31 {2p2u2 2 6 1}

@@ -49,9 +49,12 @@ Back-end часть
 
 
 ## Некоторые примеры
-1. POST: localhost:8080/expression {"expression": "(4 + 2) + 5 * 6"} 
-2. POST: localhost:8080/expression {"expression": "(2 + 2 + 2 + 2) / 4"}
-3. POST: localhost:8080/expression {"expression": "(2 + 2) * 4 + 3 - 4 + 5"}
+1. POST: localhost:8080/expression {"expression": "(4 + 2) + 5 * 6"} <br>
+ * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(4 + 2) + 5 * 6\"}" localhost:8080/api/expression
+2. POST: localhost:8080/expression {"expression": "(2 + 2 + 2 + 2) / 4"}<br>
+  * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(2 + 2 + 2 + 2) / 4\"}" localhost:8080/api/expression
+3. POST: localhost:8080/expression {"expression": "(2 + 2) * 4 + 3 - 4 + 5"}<br>
+  * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(2 + 2) * 4 + 3 - 4 + 5\"}" localhost:8080/api/expression 
 
 ## Схемы
 ![schema](images/schema.png)
