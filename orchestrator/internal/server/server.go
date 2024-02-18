@@ -59,6 +59,8 @@ func New() Server {
 	apiRouter.Get("/", handlerMainMenu)
 	apiRouter.Get("/expression/{id}", apiCfg.handlerGetExpression)
 	apiRouter.Post("/expression", apiCfg.handlerProcessExpression)
+	apiRouter.Post("/durations", apiCfg.handlerPostDuration)
+	apiRouter.Get("/durations/{name}", apiCfg.handlerGetDuration)
 
 	router.Mount("/api", apiRouter)
 

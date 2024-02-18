@@ -9,6 +9,37 @@ import (
 	"context"
 )
 
+const editDuration = `-- name: EditDuration :one
+UPDATE operators_durations
+SET operator_duration = $2
+WHERE operator_name = $1
+RETURNING operator_name, operator_duration
+`
+
+type EditDurationParams struct {
+	OperatorName     string
+	OperatorDuration float64
+}
+
+func (q *Queries) EditDuration(ctx context.Context, arg EditDurationParams) (OperatorsDuration, error) {
+	row := q.db.QueryRowContext(ctx, editDuration, arg.OperatorName, arg.OperatorDuration)
+	var i OperatorsDuration
+	err := row.Scan(&i.OperatorName, &i.OperatorDuration)
+	return i, err
+}
+
+const getDurationByName = `-- name: GetDurationByName :one
+SELECT operator_name, operator_duration FROM operators_durations
+WHERE operator_name = $1
+`
+
+func (q *Queries) GetDurationByName(ctx context.Context, operatorName string) (OperatorsDuration, error) {
+	row := q.db.QueryRowContext(ctx, getDurationByName, operatorName)
+	var i OperatorsDuration
+	err := row.Scan(&i.OperatorName, &i.OperatorDuration)
+	return i, err
+}
+
 const getDurations = `-- name: GetDurations :many
 SELECT operator_name, operator_duration FROM operators_durations
 `

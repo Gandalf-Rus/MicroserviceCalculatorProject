@@ -72,7 +72,7 @@ func (apiCfg *apiConfig) handlerGetExpression(w http.ResponseWriter, r *http.Req
 	expr, err := apiCfg.DB.GetExpressionByID(r.Context(), id)
 
 	if err != nil {
-		myJson.RespondWithError(w, 500, err.Error())
+		myJson.RespondWithError(w, 400, err.Error())
 	}
 	myJson.RespondWithJSON(w, 200, expr)
 }
