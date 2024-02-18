@@ -6,6 +6,8 @@ import (
 	"MicroserviceCalculatorProject/orchestrator/pkg/collection"
 	"MicroserviceCalculatorProject/orchestrator/pkg/expression"
 	myJson "MicroserviceCalculatorProject/orchestrator/pkg/json"
+	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
+	"context"
 	"strings"
 
 	"encoding/json"
@@ -45,7 +47,7 @@ func (apiCfg *apiConfig) handlerProcessExpression(w http.ResponseWriter, r *http
 			}
 			myJson.RespondWithJSON(w, status, "It's new expression")
 
-			tasks := prepareSubexpressionsForSend(subexpressions)
+			tasks := prepareSubexpressionsForSend(apiCfg, subexpressions)
 
 			subexpressionsDurations, err := apiCfg.DB.GetDurations(r.Context())
 			if err != nil {
@@ -167,30 +169,50 @@ func sendSubexpressions(tasks []collection.AgentsTask, durations []database.Oper
 	return nil
 }
 
-func prepareSubexpressionsForSend(subexpressions []database.Subexpression) []collection.AgentsTask {
+func prepareSubexpressionsForSend(apiCfg *apiConfig, subexpressions []database.Subexpression) []collection.AgentsTask {
 	agentsTasks := make([]collection.AgentsTask, 0)
 
+	subexpressionMap := make(map[int]float64)
 	for _, subexpression := range subexpressions {
+		if subexpression.SubexpressionResult.Valid {
+			subexpressionMap[int(subexpression.SubexpressionNumber)] = subexpression.SubexpressionResult.Float64
+		}
+
+	}
+
+	for _, subexpression := range subexpressions {
+
 		specialOperands := expression.GetSubsexprNumbersBySubsexpr(subexpression.SubexpressionBody)
 
-		for i := 0; i < len(specialOperands); i++ {
-			for j := 0; j < len(subexpressions); j++ {
-				if int(subexpressions[j].SubexpressionNumber) == specialOperands[i] && subexpressions[j].SubexpressionStatusID == 1 {
-					subexpression.SubexpressionBody =
-						strings.ReplaceAll(subexpression.SubexpressionBody,
-							fmt.Sprintf("{%d}", specialOperands[i]),
-							fmt.Sprint(subexpressions[j].SubexpressionResult))
-				}
+		for _, specialOperand := range specialOperands {
+			if value, found := subexpressionMap[specialOperand]; found {
+				subexpression.SubexpressionBody = strings.ReplaceAll(
+					subexpression.SubexpressionBody,
+					fmt.Sprintf("{%d}", specialOperand),
+					fmt.Sprintf("%f", value))
 			}
 		}
 
-		if !expression.IsContainsUnknownVar(subexpression.SubexpressionBody) {
+		for _, v := range subexpressions {
+			logger.SetupInfoLogger().Printf("%v", v)
+		}
+
+		if !expression.IsContainsUnknownVar(subexpression.SubexpressionBody) && subexpression.SubexpressionStatusID == 2 {
+			apiCfg.DB.EditSubexpressionStatus(context.Background(), database.EditSubexpressionStatusParams{
+				ExpressionID:          subexpression.ExpressionID,
+				SubexpressionNumber:   subexpression.SubexpressionNumber,
+				SubexpressionStatusID: 4,
+			})
 			agentsTasks = append(agentsTasks, expression.ConvertSubexpressionToAgentsTask(subexpression))
 		}
 	}
 
 	return agentsTasks
 }
+
+//-------
+//In server block
+//-------
 
 func getSubexpressionsResults(queueName string) (pkg.Response, error) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
@@ -242,4 +264,27 @@ func getSubexpressionsResults(queueName string) (pkg.Response, error) {
 	err = d.Ack(false)
 
 	return message, err
+}
+
+func EditExpressionIfExpressionReady(apiCfg *apiConfig, expressionID string) bool {
+
+	thisExpression, err := apiCfg.DB.GetExpressionByID(context.Background(), expressionID)
+	if err != nil {
+		return false
+	}
+
+	subexpressions, err := apiCfg.DB.GetSubexpressionByNumber(context.Background(), thisExpression.CountOfSubexpression)
+	if err != nil {
+		return false
+	}
+
+	if subexpressions.SubexpressionStatusID == 1 {
+		apiCfg.DB.EditExpressions(context.Background(), database.EditExpressionsParams{
+			ID:                 expressionID,
+			ExpressionResult:   subexpressions.SubexpressionResult,
+			ExpressionStatusID: 1,
+		})
+		return true
+	}
+	return false
 }

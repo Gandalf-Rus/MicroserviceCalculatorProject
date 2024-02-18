@@ -38,9 +38,7 @@ func (agent *Agent) Run() {
 	go agent.makeConsumer(ch, subexpressionsChan)
 
 	for {
-		log.Printf("Im in loop\n")
 		message := <-subexpressionsChan
-		log.Printf("%v\n", message)
 		sendResponse(ch, message)
 	}
 }

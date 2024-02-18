@@ -5,3 +5,10 @@ RETURNING *;
 
 -- name: GetExpressionByID :one
 SELECT * FROM expressions WHERE id = $1;
+
+-- name: EditExpressions :one
+UPDATE expressions
+SET expression_status_id = $3,
+    expression_result = $2
+WHERE id = $1
+RETURNING *;

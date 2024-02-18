@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createSubexpression = `-- name: CreateSubexpression :one
@@ -39,12 +40,121 @@ func (q *Queries) CreateSubexpression(ctx context.Context, arg CreateSubexpressi
 	return i, err
 }
 
+const editSubexpressionStatus = `-- name: EditSubexpressionStatus :one
+UPDATE subexpressions
+SET subexpression_status_id = $3
+WHERE expression_id = $1 AND subexpression_number = $2
+RETURNING expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result
+`
+
+type EditSubexpressionStatusParams struct {
+	ExpressionID          string
+	SubexpressionNumber   int32
+	SubexpressionStatusID int32
+}
+
+func (q *Queries) EditSubexpressionStatus(ctx context.Context, arg EditSubexpressionStatusParams) (Subexpression, error) {
+	row := q.db.QueryRowContext(ctx, editSubexpressionStatus, arg.ExpressionID, arg.SubexpressionNumber, arg.SubexpressionStatusID)
+	var i Subexpression
+	err := row.Scan(
+		&i.ExpressionID,
+		&i.SubexpressionNumber,
+		&i.SubexpressionBody,
+		&i.SubexpressionStatusID,
+		&i.SubexpressionResult,
+	)
+	return i, err
+}
+
+const editSubexpressions = `-- name: EditSubexpressions :one
+UPDATE subexpressions
+SET subexpression_status_id = $3,
+    subexpression_result = $4
+WHERE expression_id = $1 AND subexpression_number = $2
+RETURNING expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result
+`
+
+type EditSubexpressionsParams struct {
+	ExpressionID          string
+	SubexpressionNumber   int32
+	SubexpressionStatusID int32
+	SubexpressionResult   sql.NullFloat64
+}
+
+func (q *Queries) EditSubexpressions(ctx context.Context, arg EditSubexpressionsParams) (Subexpression, error) {
+	row := q.db.QueryRowContext(ctx, editSubexpressions,
+		arg.ExpressionID,
+		arg.SubexpressionNumber,
+		arg.SubexpressionStatusID,
+		arg.SubexpressionResult,
+	)
+	var i Subexpression
+	err := row.Scan(
+		&i.ExpressionID,
+		&i.SubexpressionNumber,
+		&i.SubexpressionBody,
+		&i.SubexpressionStatusID,
+		&i.SubexpressionResult,
+	)
+	return i, err
+}
+
 const getSubexpressionByExprID = `-- name: GetSubexpressionByExprID :many
 SELECT expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result FROM subexpressions WHERE expression_id = $1
 `
 
 func (q *Queries) GetSubexpressionByExprID(ctx context.Context, expressionID string) ([]Subexpression, error) {
 	rows, err := q.db.QueryContext(ctx, getSubexpressionByExprID, expressionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Subexpression
+	for rows.Next() {
+		var i Subexpression
+		if err := rows.Scan(
+			&i.ExpressionID,
+			&i.SubexpressionNumber,
+			&i.SubexpressionBody,
+			&i.SubexpressionStatusID,
+			&i.SubexpressionResult,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSubexpressionByNumber = `-- name: GetSubexpressionByNumber :one
+SELECT expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result FROM subexpressions WHERE subexpression_number = $1
+`
+
+func (q *Queries) GetSubexpressionByNumber(ctx context.Context, subexpressionNumber int32) (Subexpression, error) {
+	row := q.db.QueryRowContext(ctx, getSubexpressionByNumber, subexpressionNumber)
+	var i Subexpression
+	err := row.Scan(
+		&i.ExpressionID,
+		&i.SubexpressionNumber,
+		&i.SubexpressionBody,
+		&i.SubexpressionStatusID,
+		&i.SubexpressionResult,
+	)
+	return i, err
+}
+
+const getSubexpressionByStatusID = `-- name: GetSubexpressionByStatusID :many
+SELECT expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result FROM subexpressions WHERE subexpression_status_id = $1
+`
+
+func (q *Queries) GetSubexpressionByStatusID(ctx context.Context, subexpressionStatusID int32) ([]Subexpression, error) {
+	rows, err := q.db.QueryContext(ctx, getSubexpressionByStatusID, subexpressionStatusID)
 	if err != nil {
 		return nil, err
 	}

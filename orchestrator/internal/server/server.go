@@ -3,6 +3,7 @@ package server
 import (
 	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 type Server struct {
 	*http.Server
+	apiCfg apiConfig
 }
 
 type apiConfig struct {
@@ -67,11 +69,27 @@ func New() Server {
 
 	log.Printf("Server starting on port: %v", portString)
 
-	return Server{srv}
+	return Server{srv, apiCfg}
 }
 
 func (server Server) Run() {
+	//load all unresolve subexpression to RabbitMQ
+	go func() {
+		unresolveSubexpression, err := server.apiCfg.DB.GetSubexpressionByStatusID(context.Background(), 2)
+		if err != nil {
+			logger.SetupInfoLogger().Printf("database quere error: %v", err)
+		}
+		subexpressionsDurations, err := server.apiCfg.DB.GetDurations(context.Background())
+		if err != nil {
+			logger.SetupInfoLogger().Printf("database quere error: %v", err)
+		}
 
+		tasks := prepareSubexpressionsForSend(&server.apiCfg, unresolveSubexpression)
+
+		sendSubexpressions(tasks, subexpressionsDurations)
+	}()
+
+	//check queue (RabbitMQ) on subexpressions results & send new unresolves subexpression
 	go func() {
 		for {
 			subexprResult, err := getSubexpressionsResults("TasksResults")
@@ -79,6 +97,31 @@ func (server Server) Run() {
 				log.Printf("RabbitMQ error: %v", subexprResult)
 			}
 
+			logger.SetupInfoLogger().Printf("%v", subexprResult)
+
+			server.apiCfg.DB.EditSubexpressions(context.Background(), database.EditSubexpressionsParams{
+				ExpressionID:          subexprResult.ExpressionID,
+				SubexpressionNumber:   int32(subexprResult.SubexpressionNumber),
+				SubexpressionStatusID: int32(subexprResult.StatusID),
+				SubexpressionResult: sql.NullFloat64{
+					Float64: subexprResult.Result,
+					Valid:   true},
+			})
+
+			if !EditExpressionIfExpressionReady(&server.apiCfg, subexprResult.ExpressionID) {
+
+				unresolveSubexpression, err := server.apiCfg.DB.GetSubexpressionByExprID(context.Background(), subexprResult.ExpressionID)
+				if err != nil {
+					logger.SetupInfoLogger().Printf("database quere error: %v", err)
+				}
+
+				subexpressionsDurations, err := server.apiCfg.DB.GetDurations(context.Background())
+				if err != nil {
+					logger.SetupInfoLogger().Printf("database quere error: %v", err)
+				}
+				tasks := prepareSubexpressionsForSend(&server.apiCfg, unresolveSubexpression)
+				sendSubexpressions(tasks, subexpressionsDurations)
+			}
 		}
 	}()
 
