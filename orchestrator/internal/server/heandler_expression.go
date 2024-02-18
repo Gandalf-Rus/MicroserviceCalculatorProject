@@ -69,8 +69,12 @@ func (apiCfg *apiConfig) handlerProcessExpression(w http.ResponseWriter, r *http
 
 func (apiCfg *apiConfig) handlerGetExpression(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Expression ID: " + id))
+	expr, err := apiCfg.DB.GetExpressionByID(r.Context(), id)
+
+	if err != nil {
+		myJson.RespondWithError(w, 500, err.Error())
+	}
+	myJson.RespondWithJSON(w, 200, expr)
 }
 
 //-------
