@@ -43,8 +43,21 @@ Back-end часть
 
 
 
-### Как устроен проект
-В проеке есть две основные папки: orchestrator и agent
+## Как устроен проект
+  В проеке есть две основные папки: orchestrator и agent. В каждой из них находятся папки cmd (вход в программу), internal (внутренние методы/структуры) и pkg (файлы которые могут пригодится в любом проекте). в orchestrator/sql хранятся миграции (схемы) и запросы для работы с postgreSQL.
+
+
+
+## Некоторые примеры
+1. POST: localhost:8080/expression {"expression": "(4 + 2) + 5 * 6"} 
+2. POST: localhost:8080/expression {"expression": "(2 + 2 + 2 + 2) / 4"}
+3. POST: localhost:8080/expression {"expression": "(2 + 2) * 4 + 3 - 4 + 5"}
+
+## Схемы
+![schema](images/schema.png)
+![cshema](images/orchestrator.png)
+
+Ссылка на схемы: https://excalidraw.com/#json=nmhdkFY2NMesc0_JL6Eag,JYf3s11swuItgDbwwoA5rg
 
 -----
 простите пожалуйста не все успел по вопросам пишите мне в telegram: https://t.me/Ruslan20007
