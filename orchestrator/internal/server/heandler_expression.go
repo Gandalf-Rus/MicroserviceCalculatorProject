@@ -1,6 +1,7 @@
 package server
 
 import (
+	"MicroserviceCalculatorProject/agent/pkg"
 	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	"MicroserviceCalculatorProject/orchestrator/pkg/collection"
 	"MicroserviceCalculatorProject/orchestrator/pkg/expression"
@@ -189,4 +190,56 @@ func prepareSubexpressionsForSend(subexpressions []database.Subexpression) []col
 	}
 
 	return agentsTasks
+}
+
+func getSubexpressionsResults(queueName string) (pkg.Response, error) {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		return pkg.Response{}, err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return pkg.Response{}, err
+	}
+	defer ch.Close()
+
+	queue, err := ch.QueueDeclare(
+		"TasksResults", // Queue name
+		true,           // Durable
+		false,          // Delete when unused
+		false,          // Exclusive
+		false,          // No-wait
+		nil,            // Arguments
+	)
+	if err != nil {
+		return pkg.Response{}, err
+	}
+
+	msgs, err := ch.Consume(
+		queue.Name, // Queue
+		"",         // Consumer
+		false,      // Auto-ack
+		false,      // Exclusive
+		false,      // No-local
+		false,      // No-wait
+		nil,        // Args
+	)
+
+	if err != nil {
+		return pkg.Response{}, err
+	}
+
+	d := <-msgs
+	var message pkg.Response
+	err = json.Unmarshal(d.Body, &message)
+
+	if err != nil {
+		return pkg.Response{}, err
+	}
+
+	err = d.Ack(false)
+
+	return message, err
 }

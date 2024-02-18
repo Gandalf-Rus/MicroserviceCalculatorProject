@@ -72,6 +72,16 @@ func New() Server {
 
 func (server Server) Run() {
 
+	go func() {
+		for {
+			subexprResult, err := getSubexpressionsResults("TasksResults")
+			if err != nil {
+				log.Printf("RabbitMQ error: %v", subexprResult)
+			}
+
+		}
+	}()
+
 	// clear log file every 10 minute
 	go func() {
 		for {

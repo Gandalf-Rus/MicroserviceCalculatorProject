@@ -1,9 +1,12 @@
 package agent
 
 import (
+	"MicroserviceCalculatorProject/agent/pkg"
 	"MicroserviceCalculatorProject/orchestrator/pkg/collection"
+	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
 	"encoding/json"
 	"log"
+	"math"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -23,22 +26,26 @@ func New(workers int) *Agent {
 
 func (agent *Agent) Run() {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
+	logger.FailOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
-	forever := make(chan bool)
-	agent.makeConsumer(conn)
-
-	<-forever
-}
-
-func (agent Agent) makeConsumer(conn *amqp.Connection) {
 	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
-	}
+	logger.FailOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
+	subexpressionsChan := make(chan pkg.Response)
+
+	go agent.makeConsumer(ch, subexpressionsChan)
+
+	for {
+		log.Printf("Im in loop\n")
+		message := <-subexpressionsChan
+		log.Printf("%v\n", message)
+		sendResponse(ch, message)
+	}
+}
+
+func (agent Agent) makeConsumer(ch *amqp.Channel, resultsChan chan pkg.Response) {
 	queue, err := ch.QueueDeclare(
 		"UnresolvedTasks", // Queue name
 		true,              // Durable
@@ -69,19 +76,17 @@ func (agent Agent) makeConsumer(conn *amqp.Connection) {
 		for agent.FreeWorkers > 0 {
 			agent.FreeWorkers--
 			d := <-msgs
-			log.Printf("Received a message: %s", d.Body)
 
 			var message collection.AgentsTask
 			err := json.Unmarshal(d.Body, &message)
-			failOnError(err, "Failed to unmarshal JSON")
+			logger.FailOnError(err, "Failed to unmarshal JSON")
 
-			go func() {
-				result := calculateSubexpression(message)
+			go func(task collection.AgentsTask, resultsChan chan pkg.Response) {
+				calculateSubexpression(task, resultsChan)
 				defer func() {
 					agent.FreeWorkers++
-					log.Printf("%v, %v", message.ExpressionID, result)
 				}()
-			}()
+			}(message, resultsChan)
 
 			// Подтверждаем получение сообщения
 			err = d.Ack(false)
@@ -90,16 +95,40 @@ func (agent Agent) makeConsumer(conn *amqp.Connection) {
 			}
 		}
 	}
-
 }
 
-func failOnError(err error, msg string) {
+func sendResponse(ch *amqp.Channel, message pkg.Response) {
+	queue, err := ch.QueueDeclare(
+		"TasksResults", // Queue name
+		true,           // Durable
+		false,          // Delete when unused
+		false,          // Exclusive
+		false,          // No-wait
+		nil,            // Arguments
+	)
 	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
+		log.Fatalf("Failed to declare a queue: %v", err)
+	}
+	body, err := json.Marshal(message)
+	if err != nil {
+		logger.FailOnError(err, "Failed to marshal JSON")
+	}
+
+	err = ch.Publish(
+		"",         // Exchange
+		queue.Name, // Routing key
+		false,      // Mandatory
+		false,      // Immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		})
+	if err != nil {
+		logger.FailOnError(err, "Failed to publish")
 	}
 }
 
-func calculateSubexpression(data collection.AgentsTask) float64 {
+func calculateSubexpression(data collection.AgentsTask, resultChan chan pkg.Response) {
 	time.Sleep(time.Second * time.Duration(data.OperatorDuration))
 	var result float64
 	switch data.Operator {
@@ -113,5 +142,19 @@ func calculateSubexpression(data collection.AgentsTask) float64 {
 		result = data.LeftOperand / data.RightOperand
 	}
 
-	return result
+	status := 1
+	if result == float64(math.Inf(1)) || result == float64(math.Inf(-1)) {
+		result = 0
+		status = 3
+	}
+
+	response := pkg.Response{
+		ExpressionID:        data.ExpressionID,
+		SubexpressionNumber: data.SubexpressionNumber,
+		Result:              result,
+		StatusID:            status,
+	}
+
+	log.Printf("%v...\n", response)
+	resultChan <- response
 }

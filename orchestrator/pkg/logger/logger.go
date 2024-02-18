@@ -50,3 +50,9 @@ func LoggingMiddleware(logger *log.Logger) func(next http.Handler) http.Handler 
 		})
 	}
 }
+
+func FailOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+	}
+}
