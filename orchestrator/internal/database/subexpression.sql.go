@@ -132,12 +132,17 @@ func (q *Queries) GetSubexpressionByExprID(ctx context.Context, expressionID str
 	return items, nil
 }
 
-const getSubexpressionByNumber = `-- name: GetSubexpressionByNumber :one
-SELECT expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result FROM subexpressions WHERE subexpression_number = $1
+const getSubexpressionByExprIDAndNumber = `-- name: GetSubexpressionByExprIDAndNumber :one
+SELECT expression_id, subexpression_number, subexpression_body, subexpression_status_id, subexpression_result FROM subexpressions WHERE expression_id = $1 AND subexpression_number = $2
 `
 
-func (q *Queries) GetSubexpressionByNumber(ctx context.Context, subexpressionNumber int32) (Subexpression, error) {
-	row := q.db.QueryRowContext(ctx, getSubexpressionByNumber, subexpressionNumber)
+type GetSubexpressionByExprIDAndNumberParams struct {
+	ExpressionID        string
+	SubexpressionNumber int32
+}
+
+func (q *Queries) GetSubexpressionByExprIDAndNumber(ctx context.Context, arg GetSubexpressionByExprIDAndNumberParams) (Subexpression, error) {
+	row := q.db.QueryRowContext(ctx, getSubexpressionByExprIDAndNumber, arg.ExpressionID, arg.SubexpressionNumber)
 	var i Subexpression
 	err := row.Scan(
 		&i.ExpressionID,

@@ -1,17 +1,19 @@
 package server
 
 import (
+	"MicroserviceCalculatorProject/agent/pkg"
 	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
+	"github.com/streadway/amqp"
 
 	_ "github.com/lib/pq"
 )
@@ -93,13 +95,57 @@ func (server Server) Run() {
 
 	//check queue (RabbitMQ) on subexpressions results & send new unresolves subexpression
 	go func() {
-		for {
-			subexprResult, err := getSubexpressionsResults("TasksResults")
+		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+		defer conn.Close()
+
+		ch, err := conn.Channel()
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+		defer ch.Close()
+
+		queue, err := ch.QueueDeclare(
+			"TasksResults", // Queue name
+			true,           // Durable
+			false,          // Delete when unused
+			false,          // Exclusive
+			false,          // No-wait
+			nil,            // Arguments
+		)
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+
+		msgs, err := ch.Consume(
+			queue.Name, // Queue
+			"",         // Consumer
+			false,      // Auto-ack
+			false,      // Exclusive
+			false,      // No-local
+			false,      // No-wait
+			nil,        // Args
+		)
+
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+
+		for d := range msgs {
+
+			var subexprResult pkg.Response
+			err = json.Unmarshal(d.Body, &subexprResult)
 			if err != nil {
-				log.Printf("RabbitMQ error: %v", subexprResult)
+				log.Printf("Error: %v", err)
+			}
+			err = d.Ack(false)
+			if err != nil {
+				log.Printf("Error: %v", err)
 			}
 
-			logger.SetupInfoLogger().Printf("%v", subexprResult)
+			logger.SetupInfoLogger().Printf("server: %v", subexprResult)
 
 			server.apiCfg.DB.EditSubexpressions(context.Background(), database.EditSubexpressionsParams{
 				ExpressionID:          subexprResult.ExpressionID,
@@ -127,16 +173,9 @@ func (server Server) Run() {
 		}
 	}()
 
-	// clear log file every 10 minute
-	go func() {
-		for {
-			logger.ClearFileLog()
-			<-time.After(time.Minute * 20)
-		}
-	}()
-
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 }

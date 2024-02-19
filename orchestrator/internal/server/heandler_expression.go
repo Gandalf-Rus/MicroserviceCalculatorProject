@@ -1,13 +1,12 @@
 package server
 
 import (
-	"MicroserviceCalculatorProject/agent/pkg"
 	"MicroserviceCalculatorProject/orchestrator/internal/database"
 	"MicroserviceCalculatorProject/orchestrator/pkg/collection"
 	"MicroserviceCalculatorProject/orchestrator/pkg/expression"
 	myJson "MicroserviceCalculatorProject/orchestrator/pkg/json"
-	"MicroserviceCalculatorProject/orchestrator/pkg/logger"
 	"context"
+	"log"
 	"strings"
 
 	"encoding/json"
@@ -183,6 +182,9 @@ func prepareSubexpressionsForSend(apiCfg *apiConfig, subexpressions []database.S
 		}
 
 	}
+	for k, v := range subexpressionMap {
+		log.Printf("%v: %v", k, v)
+	}
 
 	for _, subexpression := range subexpressions {
 
@@ -195,10 +197,6 @@ func prepareSubexpressionsForSend(apiCfg *apiConfig, subexpressions []database.S
 					fmt.Sprintf("{%d}", specialOperand),
 					fmt.Sprintf("%f", value))
 			}
-		}
-
-		for _, v := range subexpressions {
-			logger.SetupInfoLogger().Printf("%v", v)
 		}
 
 		if !expression.IsContainsUnknownVar(subexpression.SubexpressionBody) && subexpression.SubexpressionStatusID == 2 {
@@ -218,58 +216,6 @@ func prepareSubexpressionsForSend(apiCfg *apiConfig, subexpressions []database.S
 //In server block
 //-------
 
-func getSubexpressionsResults(queueName string) (pkg.Response, error) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
-		return pkg.Response{}, err
-	}
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	if err != nil {
-		return pkg.Response{}, err
-	}
-	defer ch.Close()
-
-	queue, err := ch.QueueDeclare(
-		"TasksResults", // Queue name
-		true,           // Durable
-		false,          // Delete when unused
-		false,          // Exclusive
-		false,          // No-wait
-		nil,            // Arguments
-	)
-	if err != nil {
-		return pkg.Response{}, err
-	}
-
-	msgs, err := ch.Consume(
-		queue.Name, // Queue
-		"",         // Consumer
-		false,      // Auto-ack
-		false,      // Exclusive
-		false,      // No-local
-		false,      // No-wait
-		nil,        // Args
-	)
-
-	if err != nil {
-		return pkg.Response{}, err
-	}
-
-	d := <-msgs
-	var message pkg.Response
-	err = json.Unmarshal(d.Body, &message)
-
-	if err != nil {
-		return pkg.Response{}, err
-	}
-
-	err = d.Ack(false)
-
-	return message, err
-}
-
 func EditExpressionIfExpressionReady(apiCfg *apiConfig, expressionID string) bool {
 
 	thisExpression, err := apiCfg.DB.GetExpressionByID(context.Background(), expressionID)
@@ -277,7 +223,11 @@ func EditExpressionIfExpressionReady(apiCfg *apiConfig, expressionID string) boo
 		return false
 	}
 
-	subexpressions, err := apiCfg.DB.GetSubexpressionByNumber(context.Background(), thisExpression.CountOfSubexpression)
+	subexpressions, err := apiCfg.DB.GetSubexpressionByExprIDAndNumber(context.Background(), database.GetSubexpressionByExprIDAndNumberParams{
+		ExpressionID:        thisExpression.ID,
+		SubexpressionNumber: thisExpression.CountOfSubexpression,
+	})
+
 	if err != nil {
 		return false
 	}

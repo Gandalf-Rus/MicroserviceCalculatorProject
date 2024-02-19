@@ -15,8 +15,8 @@ SELECT * FROM subexpressions WHERE expression_id = $1;
 -- name: GetSubexpressionByStatusID :many
 SELECT * FROM subexpressions WHERE subexpression_status_id = $1;
 
--- name: GetSubexpressionByNumber :one
-SELECT * FROM subexpressions WHERE subexpression_number = $1;
+-- name: GetSubexpressionByExprIDAndNumber :one
+SELECT * FROM subexpressions WHERE expression_id = $1 AND subexpression_number = $2;
 
 -- name: EditSubexpressions :one
 UPDATE subexpressions
