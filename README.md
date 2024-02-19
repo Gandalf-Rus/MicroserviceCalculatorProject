@@ -43,19 +43,22 @@ Back-end часть
 
 
 ## Как запускать?
-  К сожалению я так и не смог насторить докер для запуска, проблема возникает на этапе загрузки миграции для постгреса, так что проект должен был запускаться по команде ```docker compose up -d``` но увы, так не запустится...
-  Для альтернативного запуска надо зайти в orchestrator/cmd и agent/cmd и запустить *main.exe*. 
-  Также надо запустить RabbitMQ: <br>
-    ```docker run -it --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management  ```<br>
-  И postgres:<br>
-    ```docker run --name my-postgres -p 5432:5432 -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=MicroserviceCalculatorDB -d postgres```<br>
-    
-  После этого надо зайти в MicroserviceCalculatorProject\orchestrator\sql\schema в терминале и ввести ```goose postgres postgres://admin:admin@localhost:5432/MicroserviceCalculatorDB up```<br><br>
-    
-  Не уверен что это стработает, поэтому если вы согласитесь это проверять очень прошу связаться со моной (контакт внизу файла), но думаю также будет справедливо за эту работу поставить 0 баллов (что будет очень грустно).
+  К сожалению я так и не смог насторить докер для запуска, проблема возникает на этапе загрузки миграции для постгреса, так что проект должен был запускаться по команде ```docker compose up -d``` но увы, так не запустится.<br>
+  ### Действия для запуска:
+  1. Вам подадобится скачать <a href="https://docs.docker.com/get-docker/" >docker</a>
+  2. Запустите docker
+  3. Запустите команду: ```docker run --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management``` для создания контейнера RabbitMQ
+  4. Запустите команду: ```docker run --name my-postgres -p 5432:5432 -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=MicroserviceCalculatorDB -d postgres``` для запуска postgresql
+  5. Зайдите в docker desktop, во вкладку *containers* и убедитесь что контейнер *some-rabbit* и *my-postgres* запущен (если не запущены - запустите кнопкой)
+  6. Откройте терминал в корневой дирриктории проекта (*MicroserviceCalculatorProject*)
+  7. **Важно** чтоб на компьютере стоял go
+  8. в терминале запустите команду ```go install github.com/pressly/goose/v3/cmd/goose@latest```
+  9. Перейдите в терминале в *MicroserviceCalculatorProject/orchestrator/sql/schema* и запустите команду ```goose postgres postgres://admin:admin@localhost:5432/MicroserviceCalculatorDB up``` (8 и 9 пункт нужны для настройки базы данных (создания таблиц))
+  10. Запустите файлы *cmd.exe* которые лежат в *MicroserviceCalculatorProject/orchestrator/cmd* и *MicroserviceCalculatorProject/agent/cmd* (агентов можно запустить несколько). Это можно сделать через командную строку или через проводник запустить exe файлы.
+  11. Откройте командную строку и введите команду ```curl localhost:8080/api``` и вам откроется минидокументация<br>
 
-  <br><br>
-  Если проект запустился введите команду ```localhost:8080/api``` (минидокументация)
+  Если по какой-то причине что-то не получилось, свяжитесь со мной.
+
 
 ## Как устроен проект
   В проеке есть две основные папки: orchestrator и agent. В каждой из них находятся папки cmd (вход в программу), internal (внутренние методы/структуры) и pkg (файлы которые могут пригодится в любом проекте). в orchestrator/sql хранятся миграции (схемы) и запросы для работы с postgreSQL.
@@ -82,12 +85,15 @@ Back-end часть
     
 
 ## Некоторые примеры
-1. POST: localhost:8080/expression {"expression": "(4 + 2) + 5 * 6"} <br>
- * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(4 + 2) + 5 * 6\"}" localhost:8080/api/expression
-2. POST: localhost:8080/expression {"expression": "(2 + 2 + 2 + 2) / 4"}<br>
-  * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(2 + 2 + 2 + 2) / 4\"}" localhost:8080/api/expression
-3. POST: localhost:8080/expression {"expression": "(2 + 2) * 4 + 3 - 4 + 5"}<br>
-  * curl -X POST -H "Content-Type: application/json" -d "{\"expression\":\"(2 + 2) * 4 + 3 - 4 + 5\"}" localhost:8080/api/expression 
+ * curl -X POST -H "Content-Type: application/json" -d "{\\"expression\\":\\"(4 + 2) + 5 * 6\\"}" localhost:8080/api/expression
+  * curl -X POST -H "Content-Type: application/json" -d "{\\"expression\\":\\"(2 + 2 + 2 + 2) / 4\\"}" localhost:8080/api/expression
+  * curl -X POST -H "Content-Type: application/json" -d "{\\"expression\\":\\"(2 + 2) * 4 + 3 - 4 + 5\\"}" localhost:8080/api/expression 
+
+  #### Изменение продолжительности операций:
+  Для этого требуется отправить POST запрос по адресу localhost:8080/api/durations с указанием имя оператора и продолжительность вычисления.<br>
+  *Пример:*
+
+    curl -X POST -H "Content-Type: application/json" -d "{\"operator\": \"*\",\"duration\": 5}" localhost:8080/api/durations
 
 ## Схемы
 ![schema](images/schema.png)
@@ -96,5 +102,5 @@ Back-end часть
 Ссылка на схемы: https://excalidraw.com/#json=nmhdkFY2NMesc0_JL6Eag,JYf3s11swuItgDbwwoA5rg
 
 -----
-простите пожалуйста, многое не успел написать, по вопросам пишите мне в telegram: https://t.me/Ruslan20007
+Простите, многое не успел написать, по всем вопросам пишите мне в telegram: https://t.me/Ruslan20007
 
