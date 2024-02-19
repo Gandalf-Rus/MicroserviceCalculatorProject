@@ -3,7 +3,7 @@ version: "3.9"
 services:
   rabbitmq:
     container_name: rabbitmq
-    image: 079f3d2cf30a8e326ebe98f3348e860b95111a152e29b82b727e971c39abd0a9
+    image: rabbitmq:3-management
     hostname: rabbitmq
     restart: always
     environment:
@@ -40,7 +40,8 @@ services:
     depends_on:
       - rabbitmq
       - postgres
-  
+    command: sh -c "sleep 30 && goose -dir /app/migrations postgres 'postgres://admin:admin@postgres:5432/MicroserviceCalculatorDB' up && ./orchestratorExe"
+
   agent:
     container_name: agent
     build: 
