@@ -48,7 +48,10 @@ Back-end часть
   Также надо запустить RabbitMQ: <br>
     ```docker run -it --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management  ```<br>
   И postgres:<br>
-    ```docker run --name my-postgres -p 5432:5432 -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=MicroserviceCalculatorDB -d postgres```<br><br>
+    ```docker run --name my-postgres -p 5432:5432 -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=MicroserviceCalculatorDB -d postgres```<br>
+    
+  После этого надо зайти в MicroserviceCalculatorProject\orchestrator\sql\schema в терминале и ввести ```goose postgres postgres://admin:admin@localhost:5432/MicroserviceCalculatorDB up```<br><br>
+    
   Не уверен что это стработает, поэтому если вы согласитесь это проверять очень прошу связаться со моной (контакт внизу файла), но думаю также будет справедливо за эту работу поставить 0 баллов (что будет очень грустно).
 
   <br><br>
