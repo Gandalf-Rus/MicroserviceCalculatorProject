@@ -47,14 +47,14 @@ Back-end часть
   ### Действия для запуска:
   1. Вам подадобится скачать <a href="https://docs.docker.com/get-docker/" >docker</a>
   2. Запустите docker
-  3. Запустите команду: ```docker run --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management``` для создания контейнера RabbitMQ
+  3. Запустите команду: ```docker run -d --hostname my-rabbit --name some-rabbit -p 15672:15672 -p 5672:5672 rabbitmq:3-management``` для создания контейнера RabbitMQ
   4. Запустите команду: ```docker run --name my-postgres -p 5432:5432 -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=MicroserviceCalculatorDB -d postgres``` для запуска postgresql
   5. Зайдите в docker desktop, во вкладку *containers* и убедитесь что контейнер *some-rabbit* и *my-postgres* запущен (если не запущены - запустите кнопкой)
   6. Откройте терминал в корневой дирриктории проекта (*MicroserviceCalculatorProject*)
   7. **Важно** чтоб на компьютере стоял go
   8. в терминале запустите команду ```go install github.com/pressly/goose/v3/cmd/goose@latest```
-  9. Перейдите в терминале в *MicroserviceCalculatorProject/orchestrator/sql/schema* и запустите команду ```goose postgres postgres://admin:admin@localhost:5432/MicroserviceCalculatorDB up``` (8 и 9 пункт нужны для настройки базы данных (создания таблиц))
-  10. Запустите файлы *cmd.exe* которые лежат в *MicroserviceCalculatorProject/orchestrator/cmd* и *MicroserviceCalculatorProject/agent/cmd* (агентов можно запустить несколько). Это можно сделать через командную строку или через проводник запустить exe файлы.
+  9. Перейдите в терминале в *MicroserviceCalculatorProject/internal/sql/schema* и запустите команду ```goose postgres postgres://admin:admin@localhost:5432/MicroserviceCalculatorDB up``` (8 и 9 пункт нужны для настройки базы данных (создания таблиц))
+  10. Запустите файлы *agent.exe* и *orchestrator.exe* которые лежат в *MicroserviceCalculatorProject/cmd*(агентов можно запустить несколько, это можно сделать через командную строку или через проводник запустить exe файлы).
   11. Откройте командную строку и введите команду ```curl localhost:8080/api``` и вам откроется минидокументация<br>
 
   Если по какой-то причине что-то не получилось, свяжитесь со мной.
